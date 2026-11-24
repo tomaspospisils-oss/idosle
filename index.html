@@ -182,7 +182,7 @@ const $=id=>document.getElementById(id);
 const fg=c=>{const h=c.replace("#",""),v=[0,2,4].map(i=>parseInt(h.substr(i,2),16));return(v[0]*299+v[1]*587+v[2]*114)/1000>150?"#111":"#fff"};
 const IC={0:"🚊",1:"🚇",2:"🚆",3:"🚌",11:"🚌"},ic=l=>IC[L[l].t]||"🚌";
 const badge=l=>`<span class="badge" style="background:${L[l].c};color:${fg(L[l].c)}">${esc(L[l].n)}</span>`;
-let legs=[],pend=null,filter="",final=null,confirmT=false;
+let legs=[],pend=null,filter="",final=null,confirmT=false,surrendered=false;
 const SK=S[P.a]+">"+S[P.b];
 // uložená hra se přehraje a ověří proti aktuálním datům (po novém buildu mohou být indexy linek/zastávek jiné)
 function valid(g){if(!Array.isArray(g))return false;let c=P.a;const u=new Set(),v=new Set([P.a]);
@@ -263,11 +263,11 @@ function render(){
  $("goal").innerHTML=`<div><small>Start</small><strong>${esc(S[P.a])}</strong></div><div class="arr">→</div><div><small>Cíl</small><strong>${esc(S[P.b])}</strong></div>`;
  const pe=$("path");pe.hidden=!legs.length;
  pe.innerHTML=`<h2>Tvoje trasa · ${legs.length} ${legs.length==1?"spoj":legs.length>=2&&legs.length<=4?"spoje":"spojů"}</h2>`+legs.map((x,i)=>{const f=i?legs[i-1].to:P.a;return`<div class="leg"><i>${i+1}.</i>${badge(x.l)}<span>${esc(S[f])} → <b>${esc(S[x.to])}</b></span></div>`}).join("");
- const p=$("panel"),undo=`<button class="btn" data-a="undo" ${legs.length?"":"disabled"}>↶ Zpět</button>`;
+ const p=$("panel"),undo=`<button class="btn" data-a="undo" ${legs.length?"":"disabled"}>↶ Zpět</button>`,giveup=`<button class="btn" data-a="giveup">Vzdát se</button>`;
  if(done()){
   if(!final){const r=mulberry(hash(KEY)+1);const s=solve(P.a,P.b,300000,r);final=Math.min(s?s.length:Infinity,P.sol.length)}
   const n=legs.length;
-  p.innerHTML=`<div class="res"><div>Cíl dosažen!</div><div class="big">${n}</div><div>${n==1?"spoj":n<=4?"spoje":"spojů"} · ${final<n?"počítač našel nejvýše "+final:final===n?"shoda s nejlepším známým řešením":"lepší než dosud nalezené řešení počítače"}</div>
+  p.innerHTML=`<div class="res"><div>${surrendered?"Řešení počítače":"Cíl dosažen!"}</div><div class="big">${n}</div><div>${n==1?"spoj":n<=4?"spoje":"spojů"} · ${final<n?"počítač našel nejvýše "+final:final===n?"shoda s nejlepším známým řešením":"lepší než dosud nalezené řešení počítače"}</div>
   <div class="emo">${legs.map(x=>ic(x.l)).join("")}</div><div class="row" style="justify-content:center"><button class="btn p" data-a="share">Sdílet výsledek</button></div></div>`;return}
  const c=cur();
  const dead=!canReach(),allUsed=toT.every((v,l)=>!v||usedSet().has(l));
@@ -276,14 +276,14 @@ function render(){
  if(pend===null){
   const V=visited(),ls=at[c].filter(l=>!usedSet().has(l)&&reach[l].get(c).some(t=>!V.has(t)));
   p.innerHTML=(ls.length?head:head0)+(ls.length?`<h2>Nastup na linku</h2><div class="grid">${ls.map(l=>`<button class="lb" data-l="${l}" style="background:${L[l].c};color:${fg(L[l].c)}">${esc(L[l].n)}</button>`).join("")}</div>`
-   :`<p class="warn"><b>Slepá ulička.</b> Odsud už nejede žádná nepoužitá linka k nové zastávce.</p>`)+`<div class="row">${undo}</div>`;
+   :`<p class="warn"><b>Slepá ulička.</b> Odsud už nejede žádná nepoužitá linka k nové zastávce.</p>`)+`<div class="row">${undo}${giveup}</div>`;
  }else{
   if(confirmT){p.innerHTML=head+`<div class="wbox"><b>Pozor, tohle je konec hry.</b><br>Vystoupením v cíli (${esc(S[P.b])}) trasu uzavřeš a vrátit se zpět už nepůjde. Výsledek bude ${legs.length+1} ${legs.length+1==1?"spoj":legs.length+1<=4?"spoje":"spojů"}.</div><div class="row"><button class="btn p" data-a="finish">Dokončit hru</button><button class="btn" data-a="cancel">Ještě to zkusím lépe</button></div>`;return}
   const ts=reach[pend].get(c).filter(t=>!visited().has(t)).sort((x,y)=>S[x].localeCompare(S[y],"cs"));
   const fl=ts.filter(t=>S[t].toLowerCase().includes(filter.toLowerCase()));
   p.innerHTML=head+`<h2>Jedeš linkou ${badge(pend)} – kde vystoupíš?</h2><input id="q" placeholder="Hledat zastávku…" value="${esc(filter)}" autocomplete="off">
   <div class="stops">${fl.map(t=>`<button class="sb${t===P.b?" t":""}" data-s="${t}">${esc(S[t])}${t===P.b?" 🏁":""}</button>`).join("")||'<span class="rules">Nic nenalezeno</span>'}</div>
-  <div class="row"><button class="btn" data-a="back">← Jiná linka</button>${undo}</div>`;
+  <div class="row"><button class="btn" data-a="back">← Jiná linka</button>${undo}${giveup}</div>`;
   const q=$("q");q.oninput=()=>{filter=q.value;const pos=q.selectionStart;render();const n=$("q");n.focus();n.setSelectionRange(pos,pos)};
  }
 }
@@ -291,6 +291,7 @@ document.addEventListener("click",e=>{const b=e.target.closest("button");if(!b)r
  if(b.dataset.l!==undefined){pend=+b.dataset.l;filter=""}
  else if(b.dataset.s!==undefined)chooseExit(+b.dataset.s)
  else if(b.dataset.a==="finish"){legs.push({l:pend,to:P.b});pend=null;confirmT=false;save()}
+ else if(b.dataset.a==="giveup"){legs=P.sol.map(x=>({...x}));pend=null;confirmT=false;surrendered=true;}
  else if(b.dataset.a==="cancel")confirmT=false;
  else if(b.dataset.a==="undo"){if(done())return;confirmT=false;if(pend!==null)pend=null;else legs.pop();save()}
  else if(b.dataset.a==="back"){pend=null;confirmT=false}
