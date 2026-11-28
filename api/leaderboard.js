@@ -10,13 +10,13 @@ module.exports = async (req, res) => {
   const key = "lb:" + date;
   try {
     const [total, flat] = await L.redis([["ZCARD", key], ["ZREVRANGE", key, "0", "9", "WITHSCORES"]]);
-    const ids = flat.filter((_, i) => i % 2 === 0), ns = flat.filter((_, i) => i % 2 === 1).map(s => 1000 - Math.floor(Number(s) / L.SC));
+    const ids = flat.filter((_, i) => i % 2 === 0), sc = flat.filter((_, i) => i % 2 === 1).map(Number), ns = sc.map(s => 1000 - Math.floor(s / L.SC)), tm = s => { const m = L.SC - 1 - (s % L.SC); return m >= L.MAXMS ? null : m; };
     const names = ids.length ? await L.redis(ids.map(id => ["HGET", "u:" + id, "name"])) : [];
     let me = null;
     if (sub) {
       const [rank, score, nm] = await L.redis([["ZREVRANK", key, sub], ["ZSCORE", key, sub], ["HGET", "u:" + sub, "name"]]);
-      if (rank !== null && rank !== undefined) me = { rank: rank + 1, n: 1000 - Math.floor(Number(score) / L.SC), name: nm || "" };
+      if (rank !== null && rank !== undefined) me = { rank: rank + 1, n: 1000 - Math.floor(Number(score) / L.SC), ms: tm(Number(score)), name: nm || "" };
     }
-    res.status(200).json({ date, total, top: ids.map((id, i) => ({ name: names[i] || "", n: ns[i], me: id === sub })), me, best: p[2] || 0 });
+    res.status(200).json({ date, total, top: ids.map((id, i) => ({ name: names[i] || "", n: ns[i], ms: tm(sc[i]), me: id === sub })), me, best: p[2] || 0 });
   } catch (e) { res.status(503).json({ error: "storage" }); }
 };

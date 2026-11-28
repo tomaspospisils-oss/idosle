@@ -11,5 +11,5 @@ module.exports = (req, res) => {
   const p = all[date];
   if (!p) return res.status(404).json({ error: "no-puzzle", date });
   const [y, m, d] = date.split("-").map(Number);
-  res.status(200).json({ date, num: Math.round((Date.UTC(y, m - 1, d) - EPOCH) / 864e5) + 1, a: p[0], b: p[1], best: p[2] || 0 });
+  res.status(200).json({ date, num: Math.round((Date.UTC(y, m - 1, d) - EPOCH) / 864e5) + 1, a: p[0], b: p[1], best: p[2] || 0, now: Date.now() });   // now = čas serveru, podle něj stránka měří čas hry
 };

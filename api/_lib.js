@@ -3,7 +3,8 @@ const fs = require("fs"), path = require("path"), crypto = require("crypto");
 const read = n => JSON.parse(fs.readFileSync(path.join(process.cwd(), "data", n), "utf8"));
 const fmt = new Intl.DateTimeFormat("sv-SE", { timeZone: "Europe/Prague" });
 const pragueDate = (back = 0) => fmt.format(new Date(Date.now() - back * 864e5));   // RRRR-MM-DD podle serveru
-const SC = 1e10;   // skóre = (1000 - spojů) * SC + (dřívější čas = víc): méně spojů = vyšší skóre, při shodě vyhrává dřívější
+const MAXMS = 3 * 86400e3;   // nejdelší započítaný čas (3 dny)
+const SC = 1e10;   // skóre = (1000 - spojů) * SC + (SC - 1 - čas v ms): méně spojů = vyšší skóre, při shodě vyhrává kratší čas
 const PREFIX = "idosle:";   // Upstash sdílí i antIDOS: každý klíč IDOSle (účty, jména, žebříčky, rozehrané hry) má tuto předponu
 
 // Upstash Redis přes REST (Vercel Marketplace). Podporuje obě pojmenování proměnných prostředí.
@@ -103,4 +104,4 @@ async function rename(sub, raw) {                                               
   }
   await redis([["HSET", "u:" + sub, "name", nm]]); return nm;
 }
-module.exports = { read, pragueDate, SC, redis, validate, CLIENT, SECRET, verifyGoogle, makeCookie, clearCookie, session, crossSite, body, ensureUser, rename, getUser, MAP_MODES };
+module.exports = { read, pragueDate, SC, MAXMS, redis, validate, CLIENT, SECRET, verifyGoogle, makeCookie, clearCookie, session, crossSite, body, ensureUser, rename, getUser, MAP_MODES };

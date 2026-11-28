@@ -13,9 +13,12 @@ module.exports = async (req, res) => {
   if (!L.validate(g, p[0], p[1], b.legs)) return res.status(400).json({ error: "invalid" });
   const n = b.legs.length, key = "lb:" + date;
   if (n > 999) return res.status(400).json({ error: "invalid" });
+  // čas hry v ms (měří stránka od prvního výběru linky); bez času se počítá nejhorší možný; rychleji než 0,25 s na spoj nejde
+  let ms = Number(b.ms); ms = Number.isFinite(ms) ? Math.round(Math.min(Math.max(ms, 0), L.MAXMS)) : L.MAXMS;
+  if (ms < L.MAXMS && ms < n * 250) return res.status(400).json({ error: "invalid" });
   try {
     const [nm] = await L.redis([["HGET", "u:" + sub, "name"]]); if (!nm) return res.status(401).json({ error: "login" });
-    const [added] = await L.redis([["ZADD", key, "NX", String((1000 - n) * L.SC + (L.SC - 1 - Math.floor(Date.now() / 1000))), sub]]);
+    const [added] = await L.redis([["ZADD", key, "NX", String((1000 - n) * L.SC + (L.SC - 1 - ms)), sub]]);
     if (!added) return res.status(409).json({ error: "already" });
     await L.redis([["EXPIRE", key, 7776000]]);
     const [rank, total] = await L.redis([["ZREVRANK", key, sub], ["ZCARD", key]]);
